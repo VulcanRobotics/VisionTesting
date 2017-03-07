@@ -7,18 +7,17 @@ import edu.wpi.first.wpilibj.vision.VisionThread;
 
 import java.util.ArrayList;
 
-import javax.swing.JFrame;
-
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
+import org.opencv.videoio.Videoio;
 
+import javax.swing.JFrame;
 
 import org.opencv.core.Rect;
 //import com.ctre.CANTalon;
-
-
+import org.opencv.core.Size;
 
 /**
  * @author kscholl
@@ -28,13 +27,11 @@ import org.opencv.core.Rect;
  */
 
 public class Main {
-	
 	private static NetworkTable networkTable;
-	
 	private static VisionThread visionThread;
+	
 	@SuppressWarnings("unused")
 	private static double centerX = 0.0;
-	
 	private final static Object imgLock = new Object();
 	
 	@SuppressWarnings("unused")
@@ -51,8 +48,9 @@ public class Main {
 		//System.loadLibrary("opencv_java320");
 		//System.loadLibrary("opencv-320");
 		//System.loadLibrary("opencv");
-	    
-	    // Connect NetworkTables, and get access to the publishing table
+		
+		
+		// Connect NetworkTables, and get access to the publishing table
 	    NetworkTable.setClientMode();
 	    // Team number here
 	    NetworkTable.setTeam(1218);
@@ -61,27 +59,104 @@ public class Main {
 	    GripPipeline pipeline = new GripPipeline();
 	    
 	    
+		// IP Camera
+	    String cameraName   = "vision_camera0";
+	    String cameraIP     = "http://10.12.18.11/mjpg/video.mjpg";
+	    //VideoCapture camera = new VideoCapture(0);
+		VideoCapture camera = new VideoCapture(cameraIP);
+	    
+		final Size frameSize = new Size((int)camera.get
+	    		(Videoio.CAP_PROP_FRAME_WIDTH),
+	    		(int)camera.get(Videoio.CAP_PROP_FRAME_HEIGHT));
+	    
+	   // final String outputFile="../output/writer-java.avi";
+	    /*
+	    final FourCC fourCC=new FourCC("XVID");
+	    
+	    VideoWriter videoWriter=new VideoWriter(outputFile,fourCC.toInt(),camera.get(Videoio.CAP_PROP_FPS),frameSize,true);
+	    final Mat mat=new Mat();
+	    int frames=0;
+	    final long startTime=System.currentTimeMillis();
+	    while (camera.read(mat)) {
+	      videoWriter.write(mat);
+	      frames++;
+	    }
+	    final long estimatedTime=System.currentTimeMillis() - startTime;
+		*/
+		
+		//CvSource outputStream = CameraServer.getInstance().putVideo("unprocessed", 640, 480);
+		//CvSink cvsink = new CvSink("CV Image Grabber");
+		//cvsink.setSource(camera0);
+	    
+	    
 	    // MARK Camera injection into GripPipeline
-	    Mat source = new Mat();
-        Mat output = new Mat();
-        
         Mat frame  = new Mat();
-        Mat frame0 = new Mat();
+        Mat output = new Mat();
+        Mat source = new Mat();
+        //Mat frame0 = new Mat();
         
 	    System.out.println("Frame Obtained");
 	    System.out.println("Captured Frame Width " + frame.width());
-        
-        System.out.println("Frame Obtained");
-	    System.out.println("Captured Frame Width " + frame.width());
 	    System.out.println("source: " + source);
+        
 	    
-		
+	    /**
+	    while(!camera.isOpened()) {
+	    	System.out.println("while(!camera.isOpened())");
+	    	camera.retrieve(frame);
+	    	Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY); // this might need to go...
+	    	System.out.println("visonThread ran");
+	    	if (!pipeline.filterContoursOutput().isEmpty()) {
+	            Rect r = Imgproc.boundingRect(pipeline.filterContoursOutput().get(0));
+	            networkTable.putNumber("x", r.x);
+	            networkTable.putNumber("y", r.y);
+	            synchronized (imgLock) {
+	                centerX = r.x + (r.width / 2);
+	            }
+	            
+	            System.out.println("Rect r: " + r);
+	            System.out.println("r.x: " + r.x);
+	            System.out.println("r.y: " + r.y);
+	            
+	    	}
+            //outputStream.putFrame(output);
+	    }
+	    **/
+	    
+	    if(camera.isOpened()) {
+	    	pipeline.process(source);
+	    }
+	    
+	    while(camera.isOpened()) {
+	    	//System.out.println("while(!camera.isOpened())");
+	    	camera.retrieve(frame);
+	    	//Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY); // this might need to go...
+	    	//System.out.println("visonThread ran");
+	    	if (!pipeline.filterContoursOutput().isEmpty()) {
+	    		System.out.println("pipeline.filterCountoursOutput is not empty");
+	    		
+	    		Rect r = Imgproc.boundingRect(pipeline.filterContoursOutput().get(0));
+	            networkTable.putNumber("x", r.x);
+	            networkTable.putNumber("y", r.y);
+	            synchronized (imgLock) {
+	                centerX = r.x + (r.width / 2);
+	            }
+	            
+	            System.out.println("Rect r: " + r);
+	            System.out.println("r.x: " + r.x);
+	            System.out.println("r.y: " + r.y);
+	            
+	    	}
+            //outputStream.putFrame(output);
+	    }
+	    
+		/*
 	 // All Mats and Lists should be stored outside the loop 
 	 // to avoid allocations, as they are expensive to create
 	 	Mat inputImage = new Mat();
 	 	Mat hsv = new Mat();
 	 	
-	    visionThread = new VisionThread(camera0, pipeline, p -> {
+	    visionThread = new VisionThread(camera, pipeline, p -> {
 	        System.out.println("visonThread ran");
 	    	if (!pipeline.filterContoursOutput().isEmpty()) {
 	            Rect r = Imgproc.boundingRect(pipeline.filterContoursOutput().get(0));
@@ -93,7 +168,7 @@ public class Main {
 	        }
 	    });
 	    visionThread.start();
-	    
+	    */
 	    
 	    
 	    
@@ -175,6 +250,6 @@ public class Main {
 		UsbCamera camera = new UsbCamera("CoprocessorCamera", cameraId);
 		server.setSource(camera);
 		return camera;
-	}*/
-	
+	}*/	
+	}
 }
