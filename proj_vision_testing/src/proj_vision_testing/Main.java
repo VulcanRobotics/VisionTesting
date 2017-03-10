@@ -61,15 +61,16 @@ public class Main {
 	    
 		// IP Camera
 	    String cameraName   = "vision_camera0";
-	    String cameraIP     = "http://10.12.18.11/mjpg/video.mjpg";
-	    //VideoCapture camera = new VideoCapture(0);
-		VideoCapture camera = new VideoCapture(cameraIP);
+	    String cameraIP     = "http://10.12.18.10/mjpg/video.mjpg";
+	    // MAC OS X: use VideoCapture(1);
+	    VideoCapture camera = new VideoCapture(1);
+	    //VideoCapture camera = new VideoCapture(cameraIP, Videoio.CAP_FFMPEG);
 	    
 		final Size frameSize = new Size((int)camera.get
 	    		(Videoio.CAP_PROP_FRAME_WIDTH),
 	    		(int)camera.get(Videoio.CAP_PROP_FRAME_HEIGHT));
+		System.out.println("frameSize: " + frameSize);
 	    
-	   // final String outputFile="../output/writer-java.avi";
 	    /*
 	    final FourCC fourCC=new FourCC("XVID");
 	    
@@ -95,10 +96,6 @@ public class Main {
         Mat source = new Mat();
         //Mat frame0 = new Mat();
         
-	    System.out.println("Frame Obtained");
-	    System.out.println("Captured Frame Width " + frame.width());
-	    System.out.println("source: " + source);
-        
 	    
 	    /**
 	    while(!camera.isOpened()) {
@@ -122,9 +119,63 @@ public class Main {
             //outputStream.putFrame(output);
 	    }
 	    **/
-	    
+        
+      // Camera to Mat --> grab each frame
+     // ****** Change - add a flag to check to see if the first frame has been read
+        boolean firstFrame;
+        if(firstFrame) {
+        	
+        }
+
+        // ****** Change - declare previous frame here
+        Mat previousFrame;
+        boolean keepProcessing;
+        while (keepProcessing) {   
+             // ****** Change - Save previous frame before getting next one
+             // Only do this if the first frame has passed!
+             if (!firstFrame)
+                 previousFrame = matFrame.clone();
+
+             // grab the next frame from video source
+             camera.grab();
+
+             // decode and return the grabbed video frame
+             camera.retrieve(matFrame);
+
+             // if the frame is valid (not end of video for example)
+             if (!(matFrame.empty()))
+             {
+                 // **** Change - If we are on the first frame, only show that and
+                 // set the flag to false
+                 if (firstFrame) {
+                     ims.showImage(matFrame);
+                     firstFrame = false;
+                 }
+                 // ***** Change - now show absolute difference after first frame
+                 else {                
+                     Core.absdiff(matFrame, previousFrame, diffFrame);
+                     ims.showImage(diffFrame);                 
+                 }
+
+                 // display image with a delay of 40ms (i.e. 1000 ms / 25 = 25 fps)                
+                 Thread.sleep(40);
+             } else { 
+                 keepProcessing = false;
+             }
+        /*Mat m = ...;  // assuming it's of CV_8U type
+        		byte buff[] = new byte[m.total() * m.channels()];
+        		m.get(0, 0, buff);
+        		// working with buff
+        		// ...
+        		m.put(0, 0, buff);
+        	*/	
+        /***************************************************************/
+        
 	    if(camera.isOpened()) {
-	    	pipeline.process(source);
+	    	System.out.println("camera.isOpened() & pipeline.process");
+	    	pipeline.process(frame);
+	    	//pipeline.process(output);
+	    	//pipeline.process(source);
 	    }
 	    
 	    while(camera.isOpened()) {
@@ -149,6 +200,10 @@ public class Main {
 	    	}
             //outputStream.putFrame(output);
 	    }
+	    
+	    System.out.println("Frame Obtained");
+	    System.out.println("Captured Frame Width " + frame.width());
+	    System.out.println("source: " + source);
 	    
 		/*
 	 // All Mats and Lists should be stored outside the loop 
